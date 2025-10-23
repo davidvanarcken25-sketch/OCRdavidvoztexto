@@ -51,4 +51,26 @@ if img_file_buffer is not None:
             "Español": "es",
             "Inglés": "en",
             "Francés": "fr",
-            "Alemán": "
+            "Alemán": "de",
+            "Italiano": "it"
+        }
+
+        idioma_destino = lang_codes[idioma_salida]
+        traduccion = translator.translate(texto, dest=idioma_destino).text
+
+        st.subheader(f"🌍 Traducción al {idioma_salida}:")
+        st.write(traduccion)
+
+        # --- Audio ---
+        st.subheader("🔊 Reproducir audio:")
+        engine = pyttsx3.init()
+        tmp_audio = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
+        engine.save_to_file(traduccion, tmp_audio.name)
+        engine.runAndWait()
+
+        audio_file = open(tmp_audio.name, "rb")
+        st.audio(audio_file.read(), format="audio/mp3")
+
+        # Limpiar archivo temporal
+        audio_file.close()
+        os.remove(tmp_audio.name)
