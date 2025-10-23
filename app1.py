@@ -1,76 +1,45 @@
 import streamlit as st
-import cv2
-import numpy as np
-import pytesseract
-from PIL import Image
-from googletrans import Translator
-import pyttsx3
-import tempfile
-import os
+import speech_recognition as sr
+from gtts import gTTS
+from io import BytesIO
 
-# --- Configuración de la app ---
-st.set_page_config(page_title="OCR Traductor con Voz", page_icon="🧠", layout="centered")
-st.title("🧠 OCR + Traducción + Audio")
-st.write("Toma una foto con texto, tradúcelo automáticamente y escúchalo en voz alta.")
+st.title("🎙️ Voz a Texto y Texto a Voz")
 
-# --- Sidebar ---
-with st.sidebar:
-    st.header("Opciones")
-    filtro = st.radio("Filtro de imagen", ("Sin filtro", "Invertir colores"))
-    idioma_salida = st.selectbox("Traducir a:", ("Español", "Inglés", "Francés", "Alemán", "Italiano"))
+# ------------------------
+# Sección 1: Voz → Texto
+# ------------------------
+st.header("🎧 Grabar voz y convertir a texto")
 
-# --- Captura de imagen ---
-img_file_buffer = st.camera_input("📸 Toma una foto con texto")
+if st.button("🎤 Grabar voz"):
+    recognizer = sr.Recognizer()
+    with sr.Microphone() as source:
+        st.write("Escuchando... habla ahora 🎙️")
+        audio = recognizer.listen(source)
+        try:
+            texto = recognizer.recognize_google(audio, language="es-ES")
+            st.success(f"Texto reconocido: {texto}")
+            # Reproduce automáticamente el texto reconocido
+            tts = gTTS(text=texto, lang="es")
+            audio_buffer = BytesIO()
+            tts.write_to_fp(audio_buffer)
+            audio_buffer.seek(0)
+            st.audio(audio_buffer, format="audio/mp3")
+        except:
+            st.error("No se pudo reconocer la voz. Intenta nuevamente.")
 
-if img_file_buffer is not None:
-    # Leer la imagen
-    bytes_data = img_file_buffer.getvalue()
-    cv2_img = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
+# ------------------------
+# Sección 2: Texto → Voz
+# ------------------------
+st.header("✍️ Escribe tu narración")
 
-    # Filtro opcional
-    if filtro == "Invertir colores":
-        cv2_img = cv2.bitwise_not(cv2_img)
+texto_manual = st.text_area("Escribe algo para escucharlo en voz alta:", "")
 
-    # Convertir a RGB
-    img_rgb = cv2.cvtColor(cv2_img, cv2.COLOR_BGR2RGB)
-
-    # Mostrar imagen procesada
-    st.image(img_rgb, caption="Imagen procesada", use_container_width=True)
-
-    # --- OCR ---
-    st.subheader("📄 Texto detectado:")
-    texto = pytesseract.image_to_string(img_rgb)
-    st.write(texto if texto.strip() else "No se detectó texto en la imagen.")
-
-    # --- Traducción ---
-    if texto.strip():
-        translator = Translator()
-
-        # Selección del idioma de salida
-        lang_codes = {
-            "Español": "es",
-            "Inglés": "en",
-            "Francés": "fr",
-            "Alemán": "de",
-            "Italiano": "it"
-        }
-
-        idioma_destino = lang_codes[idioma_salida]
-        traduccion = translator.translate(texto, dest=idioma_destino).text
-
-        st.subheader(f"🌍 Traducción al {idioma_salida}:")
-        st.write(traduccion)
-
-        # --- Audio ---
-        st.subheader("🔊 Reproducir audio:")
-        engine = pyttsx3.init()
-        tmp_audio = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
-        engine.save_to_file(traduccion, tmp_audio.name)
-        engine.runAndWait()
-
-        audio_file = open(tmp_audio.name, "rb")
-        st.audio(audio_file.read(), format="audio/mp3")
-
-        # Limpiar archivo temporal
-        audio_file.close()
-        os.remove(tmp_audio.name)
+if st.button("🔊 Escuchar texto escrito"):
+    if texto_manual.strip() != "":
+        tts = gTTS(text=texto_manual, lang="es")
+        audio_buffer = BytesIO()
+        tts.write_to_fp(audio_buffer)
+        audio_buffer.seek(0)
+        st.audio(audio_buffer, format="audio/mp3")
+    else:
+        st.warning("Por favor escribe algo primero.")
